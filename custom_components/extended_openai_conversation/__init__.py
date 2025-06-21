@@ -168,6 +168,21 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         if user_input.conversation_id in self.history:
             conversation_id = user_input.conversation_id
             messages = self.history[conversation_id]
+            # Regenerate system message to update dynamic template variables
+            try:
+                messages[0] = self._generate_system_message(
+                    exposed_entities, user_input
+                )
+            except TemplateError as err:
+                _LOGGER.error("Error rendering prompt: %s", err)
+                intent_response = intent.IntentResponse(language=user_input.language)
+                intent_response.async_set_error(
+                    intent.IntentResponseErrorCode.UNKNOWN,
+                    f"Sorry, I had a problem with my template: {err}",
+                )
+                return conversation.ConversationResult(
+                    response=intent_response, conversation_id=conversation_id
+                )
         else:
             conversation_id = ulid.ulid()
             user_input.conversation_id = conversation_id
